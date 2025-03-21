@@ -8,7 +8,9 @@ import (
 
 //给您道面试题：写入文件时，对数据做反转；读取文件时，再将数据反转回来。例如：数据为[]byte{5,4,3,2,1}，磁盘上的数据应为12345
 
-type ReverseOpt struct{}
+type ReverseOpt struct {
+	chunkSize int // chunkSize表示
+}
 
 // ReverseBytes byte切片翻转
 func (opt *ReverseOpt) ReverseBytes(data []byte) []byte {

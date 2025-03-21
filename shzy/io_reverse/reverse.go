@@ -2,6 +2,8 @@ package io_reverse
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"time"
@@ -72,6 +74,68 @@ func (opt *ReverseOpt) CreateByteFile(filename string, num int) error {
 	err := opt.Write(filename, data)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// ReverseFile 翻转文件内容
+func (opt *ReverseOpt) ReverseFile(inputPath, outputPath string, chunkSize int) error {
+	// 打开输入文件
+	inputFile, err := os.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("无法打开输入文件: %w", err)
+	}
+	defer inputFile.Close()
+
+	// 获取输入文件的大小
+	fileInfo, err := inputFile.Stat()
+	if err != nil {
+		return fmt.Errorf("无法获取文件信息: %w", err)
+	}
+	fileSize := fileInfo.Size()
+
+	// 打开输出文件
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("无法创建输出文件: %w", err)
+	}
+	defer outputFile.Close()
+
+	// 初始化输出文件的大小
+	err = outputFile.Truncate(fileSize)
+	if err != nil {
+		return fmt.Errorf("无法调整输出文件大小: %w", err)
+	}
+
+	// 分块处理文件
+	for offset := fileSize; offset > 0; offset -= int64(chunkSize) {
+		// 计算当前块的大小
+		if offset < int64(chunkSize) {
+			chunkSize = int(offset)
+		}
+		// 定位到当前块的起始位置
+		_, err = inputFile.Seek(offset-int64(chunkSize), io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("无法定位到文件位置: %w", err)
+		}
+		// 读取当前块的数据
+		chunk := make([]byte, chunkSize)
+		_, err = bufio.NewReader(inputFile).Read(chunk)
+		if err != nil {
+			return fmt.Errorf("无法读取文件块: %w", err)
+		}
+		// 反转当前块的数据
+		reversedChunk := opt.ReverseBytes(chunk)
+		// 定位到输出文件的相应位置
+		_, err = outputFile.Seek(fileSize-offset, io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("无法定位到输出文件位置: %w", err)
+		}
+		// 将反转后的数据写入输出文件
+		_, err = outputFile.Write(reversedChunk)
+		if err != nil {
+			return fmt.Errorf("无法写入文件块: %w", err)
+		}
 	}
 	return nil
 }
