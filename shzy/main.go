@@ -72,7 +72,7 @@ func (opt *ReverseOpt) Write(filename string, data []byte) error {
 
 func main() {
 	opt := ReverseOpt{}
-	data := []byte{1, 3, 5, 7, 9}
+	data := []byte{5, 4, 3, 2, 1}
 	log.Printf("源数据：%v", data)
 	filename := "./reverse_test.bin"
 	wErr := opt.Write(filename, data)
@@ -83,10 +83,10 @@ func main() {
 	if vErr != nil {
 		log.Fatalf("读数据时发生异常 %v", vErr)
 	}
-	log.Printf("文件中存储的byte数据正序读取为：%v", ValidReadData)
-	rReadData, rRrr := opt.Read(filename)
-	if rRrr != nil {
-		log.Fatalf("读数据时发生异常 %v", wErr)
+	log.Printf("文件中存储的byte数据,直接正序读取为：%v", ValidReadData)
+	rReadData, rErr := opt.Read(filename)
+	if rErr != nil {
+		log.Fatalf("读数据时发生异常 %v", rErr)
 	}
 	log.Printf("读取出的数据为:%v", rReadData)
 
