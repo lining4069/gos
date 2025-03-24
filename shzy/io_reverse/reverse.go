@@ -78,10 +78,9 @@ func (opt *ReverseOpt) CreateByteFile(filename string, num int) error {
 	return nil
 }
 
-// ReverseFile 翻转文件内容
-func (opt *ReverseOpt) ReverseFile(inputPath, outputPath string, chunkSize int) error {
+func (opt *ReverseOpt) ReverseFile(inputPath string) error {
 	// 打开输入文件
-	inputFile, err := os.Open(inputPath)
+	inputFile, err := os.OpenFile(inputPath, os.O_RDWR, 0666)
 	if err != nil {
 		return fmt.Errorf("无法打开输入文件: %w", err)
 	}
@@ -94,48 +93,52 @@ func (opt *ReverseOpt) ReverseFile(inputPath, outputPath string, chunkSize int) 
 	}
 	fileSize := fileInfo.Size()
 
-	// 打开输出文件
-	outputFile, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("无法创建输出文件: %w", err)
-	}
-	defer outputFile.Close()
+	left := int64(0)
+	right := fileSize - 1
+	for left < right {
+		// 读取左侧字节
+		_, err = inputFile.Seek(left, io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("无法定位到文件左侧位置: %w", err)
+		}
+		leftByte := make([]byte, 1)
+		_, err = bufio.NewReader(inputFile).Read(leftByte)
+		if err != nil {
+			return fmt.Errorf("无法读取文件左侧字节: %w", err)
+		}
 
-	// 初始化输出文件的大小
-	err = outputFile.Truncate(fileSize)
-	if err != nil {
-		return fmt.Errorf("无法调整输出文件大小: %w", err)
-	}
+		// 读取右侧字节
+		_, err = inputFile.Seek(right, io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("无法定位到文件右侧位置: %w", err)
+		}
+		rightByte := make([]byte, 1)
+		_, err = bufio.NewReader(inputFile).Read(rightByte)
+		if err != nil {
+			return fmt.Errorf("无法读取文件右侧字节: %w", err)
+		}
 
-	// 分块处理文件
-	for offset := fileSize; offset > 0; offset -= int64(chunkSize) {
-		// 计算当前块的大小
-		if offset < int64(chunkSize) {
-			chunkSize = int(offset)
-		}
-		// 定位到当前块的起始位置
-		_, err = inputFile.Seek(offset-int64(chunkSize), io.SeekStart)
+		// 交换左右字节
+		_, err = inputFile.Seek(left, io.SeekStart)
 		if err != nil {
-			return fmt.Errorf("无法定位到文件位置: %w", err)
+			return fmt.Errorf("无法定位到文件左侧位置进行写入: %w", err)
 		}
-		// 读取当前块的数据
-		chunk := make([]byte, chunkSize)
-		_, err = bufio.NewReader(inputFile).Read(chunk)
+		_, err = inputFile.Write(rightByte)
 		if err != nil {
-			return fmt.Errorf("无法读取文件块: %w", err)
+			return fmt.Errorf("无法写入文件左侧字节: %w", err)
 		}
-		// 反转当前块的数据
-		reversedChunk := opt.ReverseBytes(chunk)
-		// 定位到输出文件的相应位置
-		_, err = outputFile.Seek(fileSize-offset, io.SeekStart)
+
+		_, err = inputFile.Seek(right, io.SeekStart)
 		if err != nil {
-			return fmt.Errorf("无法定位到输出文件位置: %w", err)
+			return fmt.Errorf("无法定位到文件右侧位置进行写入: %w", err)
 		}
-		// 将反转后的数据写入输出文件
-		_, err = outputFile.Write(reversedChunk)
+		_, err = inputFile.Write(leftByte)
 		if err != nil {
-			return fmt.Errorf("无法写入文件块: %w", err)
+			return fmt.Errorf("无法写入文件右侧字节: %w", err)
 		}
+
+		left++
+		right--
 	}
 	return nil
 }
